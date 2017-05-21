@@ -76,18 +76,32 @@
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_d3___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_d3__);
 
 
+// parse the date / time
+const parseTime = __WEBPACK_IMPORTED_MODULE_0_d3__["timeParse"]("%H:%M:%S");
+
 function ScheduleChart(elemid, options) {
 	// insert element
 	this.chartElement = document.getElementById(elemid);
-	
+
 	__WEBPACK_IMPORTED_MODULE_0_d3__["csv"]("/data/LEDProfile.csv", (error, data) => {
 		if (error) throw error;
 		this.data = data;
+		
+		// format the data
+		this.data.forEach(d => {
+			d.date = parseTime(d.date);
+			d.red = +d.red;
+			d.green = +d.green;
+			d.blue = +d.blue;
+			d.white = +d.white;
+		});
+
+		this.create();
 		this.update();
 	});
 }
 
-ScheduleChart.prototype.update = function() {
+ScheduleChart.prototype.create = function() {
 	// get width of body
 	this.bodyWidth = this.chartElement.offsetWidth;
 
@@ -98,29 +112,13 @@ ScheduleChart.prototype.update = function() {
 	this.chartSpacing = 10;
 	this.chartHeight = (this.height - (this.chartSpacing * 3)) / 4;
 
-	// parse the date / time
-	const parseTime = __WEBPACK_IMPORTED_MODULE_0_d3__["timeParse"]("%H:%M:%S");
-
 	// set the ranges
-	const x = __WEBPACK_IMPORTED_MODULE_0_d3__["scaleTime"]().range([0, this.width]);
-	const y = __WEBPACK_IMPORTED_MODULE_0_d3__["scaleLinear"]().range([this.chartHeight, 0]);
+	this.x = __WEBPACK_IMPORTED_MODULE_0_d3__["scaleTime"]().range([0, this.width]);
+	this.y = __WEBPACK_IMPORTED_MODULE_0_d3__["scaleLinear"]().range([this.chartHeight, 0]);
 
-	// define the line
-	const whiteLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
-		.x(d => x(d.date))
-		.y(d => y(d.white));
-
-	const redLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
-		.x(d => x(d.date))
-		.y(d => y(d.red));
-
-	const greenLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
-		.x(d => x(d.date))
-		.y(d => y(d.green));
-
-	const blueLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
-		.x(d => x(d.date))
-		.y(d => y(d.blue));
+	// Scale the range of the data
+	this.x.domain([parseTime('00:00:00'), parseTime('24:00:00')]);
+	this.y.domain([0, 256]);
 
 	// append the svg obgect to the body of the page
 	// appends a 'group' element to 'svg'
@@ -132,92 +130,99 @@ ScheduleChart.prototype.update = function() {
 		.attr("transform",
 		"translate(" + this.margin.left + "," + this.margin.top + ")");
 
-	// format the data
-	this.data.forEach(d => {
-		d.date = parseTime(d.date);
-		d.red = +d.red;
-		d.green = +d.green;
-		d.blue = +d.blue;
-		d.white = +d.white;
-	});
-
-	// Scale the range of the data
-	x.domain([parseTime('00:00:00'), parseTime('24:00:00')]);
-	y.domain([0, __WEBPACK_IMPORTED_MODULE_0_d3__["max"](this.data, d => Math.max(d.red, d.green, d.blue))]);
-
-	// total chart
-	const whiteChart = svg.append("g")
-	const redChart = svg.append("g")
+	// create chart groups & agreas
+	this.whiteChart = svg.append("g")
+	this.redChart = svg.append("g")
 		.attr("transform",
 		"translate(0," + (this.chartSpacing + this.chartHeight) + ")");
-	const greenChart = svg.append("g")
+	this.greenChart = svg.append("g")
 		.attr("transform",
 		"translate(0," + (this.chartSpacing + this.chartHeight) * 2 + ")");
-	const blueChart = svg.append("g")
+	this.blueChart = svg.append("g")
 		.attr("transform",
 		"translate(0," + (this.chartSpacing + this.chartHeight) * 3 + ")");
 
-	this.appendPlotArea(whiteChart);
-	this.appendPlotArea(redChart);
-	this.appendPlotArea(greenChart);
-	this.appendPlotArea(blueChart);
-
-	// Add the line path.
-	whiteChart.append("path")
-		.data([this.data])
-		.attr("class", "white-stroke")
-		.attr("d", whiteLine);
-	whiteChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => x(d.date))
-		.attr("cy", d => y(d.white));
-
-	redChart.append("path")
-		.data([this.data])
-		.attr("class", "red-stroke")
-		.attr("d", redLine);
-	redChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => x(d.date))
-		.attr("cy", d => y(d.red));
-
-	greenChart.append("path")
-		.data([this.data])
-		.attr("class", "green-stroke")
-		.attr("d", greenLine);
-	greenChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => x(d.date))
-		.attr("cy", d => y(d.green));
-
-	blueChart.append("path")
-		.data([this.data])
-		.attr("class", "blue-stroke")
-		.attr("d", blueLine);
-	blueChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => x(d.date))
-		.attr("cy", d => y(d.blue))
-	// .on("mousedown.drag",  this.datapoint_drag())
-	// .on("touchstart.drag", this.datapoint_drag());
+	this.appendPlotArea(this.whiteChart);
+	this.appendPlotArea(this.redChart);
+	this.appendPlotArea(this.greenChart);
+	this.appendPlotArea(this.blueChart);
 
 	// Add the X Axis
 	svg.append("g")
 		.attr("transform", "translate(0," + this.height + ")")
-		.call(__WEBPACK_IMPORTED_MODULE_0_d3__["axisBottom"](x)
+		.call(__WEBPACK_IMPORTED_MODULE_0_d3__["axisBottom"](this.x)
 			.tickFormat(__WEBPACK_IMPORTED_MODULE_0_d3__["timeFormat"]("%H:%M")));
+}
+
+ScheduleChart.prototype.update = function() {
+
+	// define the line
+	const whiteLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
+		.x(d => this.x(d.date))
+		.y(d => this.y(d.white));
+
+	const redLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
+		.x(d => this.x(d.date))
+		.y(d => this.y(d.red));
+
+	const greenLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
+		.x(d => this.x(d.date))
+		.y(d => this.y(d.green));
+
+	const blueLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
+		.x(d => this.x(d.date))
+		.y(d => this.y(d.blue));
+
+	// Add the line path.
+	this.whiteChart.append("path")
+		.data([this.data])
+		.attr("class", "white-stroke")
+		.attr("d", whiteLine);
+	this.whiteChart.selectAll("dot")
+		.data(this.data)
+		.enter().append("circle")
+		.attr("class", "point")
+		.attr("r", 6)
+		.attr("cx", d => this.x(d.date))
+		.attr("cy", d => this.y(d.white));
+
+	this.redChart.append("path")
+		.data([this.data])
+		.attr("class", "red-stroke")
+		.attr("d", redLine);
+	this.redChart.selectAll("dot")
+		.data(this.data)
+		.enter().append("circle")
+		.attr("class", "point")
+		.attr("r", 6)
+		.attr("cx", d => this.x(d.date))
+		.attr("cy", d => this.y(d.red));
+
+	this.greenChart.append("path")
+		.data([this.data])
+		.attr("class", "green-stroke")
+		.attr("d", greenLine);
+	this.greenChart.selectAll("dot")
+		.data(this.data)
+		.enter().append("circle")
+		.attr("class", "point")
+		.attr("r", 6)
+		.attr("cx", d => this.x(d.date))
+		.attr("cy", d => this.y(d.green));
+	
+	this.blueChart.append("path")
+		.data([this.data])
+		.attr("class", "blue-stroke")
+		.attr("d", blueLine);
+	this.blueChart.selectAll("dot")
+		.data(this.data)
+		.enter().append("circle")
+		.attr("class", d => d === this.selected ? "selected-point" : "point")
+		.attr("r", 6)
+		.attr("cx", d => this.x(d.date))
+		.attr("cy", d => this.y(d.blue))
+	 .on("mousedown.drag",  this.datapoint_drag())
+	 .on("touchstart.drag", this.datapoint_drag());
 }
 
 
@@ -226,15 +231,43 @@ ScheduleChart.prototype.appendPlotArea = function(chart) {
 		.attr("width", this.width)
 		.attr("height", this.chartHeight)
 		.style("fill", "#EEEEEE");
+
+	chart
+		.on("mousemove.drag", this.mousemove(chart))
+		.on("touchmove.drag", this.mousemove(chart))
+		.on("mouseup.drag",   this.mouseup(chart))
+		.on("touchend.drag",  this.mouseup(chart));
 }
 
 ScheduleChart.prototype.datapoint_drag = function() {
 	return (d) => {
-		registerKeyboardHandler(this.keydown());
 		document.onselectstart = () => false;
-		this.selected = self.dragged = d;
+		this.selected = this.dragged = d;
 		this.update();
 	}
+}
+
+
+ScheduleChart.prototype.mousemove = function(chart) {
+  return () => {
+		console.log(chart);
+    var p = chart.mouse(chart[0][0]),
+        t = chart.changedTouches;
+    
+    if (this.dragged) {
+			console.log("draggin", p);
+      //this.dragged.y = this.y.invert(Math.max(0, Math.min(this.height, p[1])));
+      this.update();
+    };
+	}
+}
+
+ScheduleChart.prototype.mouseup = function() {
+  return () => {
+    if (this.dragged) { 
+      this.dragged = null 
+    }
+  }
 }
 
 /***/ }),

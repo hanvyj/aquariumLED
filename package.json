@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "nodemon ./bin/www",
-    "host": "ws --rewrite \"/data/* -> http://localhost:3000/data/$1\""
+    "host": "ws --rewrite \"/data/* -> http://localhost:3000/data/$1\"",
+    "transpile": "webpack --watch"
   },
   "dependencies": {
     "body-parser": "~1.13.2",

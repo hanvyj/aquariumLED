@@ -26,3 +26,7 @@
 .point {
   fill: lightgray;
 }
+
+.selected-point {
+  fill: yellow;
+}
