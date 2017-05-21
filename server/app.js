@@ -1,15 +1,18 @@
-var express = require('express');
-var cookieParser = require('cookie-parser');
-var bodyParser = require('body-parser');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const bodyParser = require('body-parser');
 
-var users = require('./routes/users');
+const users = require('./routes/users');
 
-var app = express();
+const app = express();
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser())
 
 app.use('/api/v1/users', users);
+
+app.use('/data', express.static(path.join(__dirname, 'data')));
 
 module.exports = app;

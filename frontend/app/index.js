@@ -1,10 +1,4 @@
 
-import module1 from './module1';
+import scheduleChart from './scheduleChart';
 
-function getComponent () {
-  var element = document.createElement('div');
-  element.innerHTML = module1();
-  return element;
-}
-
-document.body.appendChild(getComponent());
+scheduleChart();
