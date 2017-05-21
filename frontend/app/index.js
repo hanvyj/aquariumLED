@@ -1,4 +1,5 @@
 
-import scheduleChart from './scheduleChart';
+import ScheduleChart from './scheduleChart';
 
-scheduleChart();
+let scheduleChart = new ScheduleChart('scheduleChart', {});
+console.log(scheduleChart);
