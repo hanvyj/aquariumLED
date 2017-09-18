@@ -83,18 +83,21 @@ function ScheduleChart(elemid, options) {
 	// insert element
 	this.chartElement = document.getElementById(elemid);
 
-	__WEBPACK_IMPORTED_MODULE_0_d3__["csv"]("/data/LEDProfile.csv", (error, data) => {
+	__WEBPACK_IMPORTED_MODULE_0_d3__["csv"]("server/data/LEDProfile.csv", (error, data) => {
 		if (error) throw error;
 		this.data = data;
 		
 		// format the data
-		this.data.forEach(d => {
-			d.date = parseTime(d.date);
-			d.red = +d.red;
-			d.green = +d.green;
-			d.blue = +d.blue;
-			d.white = +d.white;
-		});
+		let i = 0;
+		this.data = this.data.map(d => ({
+			index: i++,
+			date: parseTime(d.date),
+			red: +d.red,
+			green: +d.green,
+			blue: +d.blue,
+			white: +d.white
+		}));
+		console.log(this.data);
 
 		this.create();
 		this.update();
@@ -110,7 +113,7 @@ ScheduleChart.prototype.create = function() {
 	this.width = this.bodyWidth - this.margin.left - this.margin.right;
 	this.height = 500 - this.margin.top - this.margin.bottom;
 	this.chartSpacing = 10;
-	this.chartHeight = (this.height - (this.chartSpacing * 3)) / 4;
+	this.chartHeight = (this.height - (this.chartSpacing * 4)) / 5;
 
 	// set the ranges
 	this.x = __WEBPACK_IMPORTED_MODULE_0_d3__["scaleTime"]().range([0, this.width]);
@@ -123,22 +126,23 @@ ScheduleChart.prototype.create = function() {
 	// append the svg obgect to the body of the page
 	// appends a 'group' element to 'svg'
 	// moves the 'group' element to the top left margin
-	const svg = __WEBPACK_IMPORTED_MODULE_0_d3__["select"]("#scheduleChart").append("svg")
+	const svg = this.svg = __WEBPACK_IMPORTED_MODULE_0_d3__["select"]("#scheduleChart").append("svg")
 		.attr("width", this.width + this.margin.left + this.margin.right)
 		.attr("height", this.height + this.margin.top + this.margin.bottom)
-		.append("g")
+
+	const g = svg.append("g")
 		.attr("transform",
 		"translate(" + this.margin.left + "," + this.margin.top + ")");
 
 	// create chart groups & agreas
-	this.whiteChart = svg.append("g")
-	this.redChart = svg.append("g")
+	this.whiteChart = g.append("g")
+	this.redChart = g.append("g")
 		.attr("transform",
 		"translate(0," + (this.chartSpacing + this.chartHeight) + ")");
-	this.greenChart = svg.append("g")
+	this.greenChart = g.append("g")
 		.attr("transform",
 		"translate(0," + (this.chartSpacing + this.chartHeight) * 2 + ")");
-	this.blueChart = svg.append("g")
+	this.blueChart = g.append("g")
 		.attr("transform",
 		"translate(0," + (this.chartSpacing + this.chartHeight) * 3 + ")");
 
@@ -147,82 +151,85 @@ ScheduleChart.prototype.create = function() {
 	this.appendPlotArea(this.greenChart);
 	this.appendPlotArea(this.blueChart);
 
+	this.colorArea = g.append("g")
+		.attr("transform",
+		"translate(0," + (this.chartSpacing + this.chartHeight) * 4 + ")");
+
 	// Add the X Axis
 	svg.append("g")
 		.attr("transform", "translate(0," + this.height + ")")
 		.call(__WEBPACK_IMPORTED_MODULE_0_d3__["axisBottom"](this.x)
 			.tickFormat(__WEBPACK_IMPORTED_MODULE_0_d3__["timeFormat"]("%H:%M")));
+
+	var gradients = svg.append("defs")
+			.selectAll("gradients")
+		.data(this.data)
+		.enter().append("linearGradient")
+    .attr("id", d => "gradient" + d.index)
+    .attr("x1", "0%")
+    .attr("y1", "0%")
+    .attr("x2", "100%")
+    .attr("y2", "0%")
+
+	gradients.append("stop")
+   .attr('class', 'start')
+   .attr("offset", "0%")
+   .attr("stop-color", d => `rgb(${d.red}, ${d.green}, ${d.blue})`)
+   .attr("stop-opacity", 1);
+
+	gradients.append("stop")
+   .attr('class', 'end')
+   .attr("offset", "100%")
+   .attr("stop-color", d => {
+		 if (d.index < (this.data.length - 1)) {
+			const next = this.data[d.index + 1];
+			`rgb(${next.red}, ${next.green}, ${next.blue})`
+		 }
+	 })
+   .attr("stop-opacity", 1);
+
+	this.colorArea.selectAll("color")
+		.data(this.data)
+		.enter().append("rect")
+		.attr("x", d => this.x(d.date))
+		.attr("width", d => {
+			return d.index < (this.data.length - 1) ? this.x(this.data[d.index + 1].date) - this.x(d.date) : 0;
+		})
+		.attr("height",this.chartHeight)
+		.attr("fill", d => "url(#gradient" + d.index + ")");
 }
 
 ScheduleChart.prototype.update = function() {
 
 	// define the line
-	const whiteLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
+	this.whiteLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
 		.x(d => this.x(d.date))
 		.y(d => this.y(d.white));
 
-	const redLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
+	this.redLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
 		.x(d => this.x(d.date))
 		.y(d => this.y(d.red));
 
-	const greenLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
+	this.greenLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
 		.x(d => this.x(d.date))
 		.y(d => this.y(d.green));
 
-	const blueLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
+	this.blueLine = __WEBPACK_IMPORTED_MODULE_0_d3__["line"]()
 		.x(d => this.x(d.date))
 		.y(d => this.y(d.blue));
 
 	// Add the line path.
-	this.whiteChart.append("path")
-		.data([this.data])
-		.attr("class", "white-stroke")
-		.attr("d", whiteLine);
-	this.whiteChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => this.x(d.date))
-		.attr("cy", d => this.y(d.white));
+	this.appendLineAndPoints(this.whiteChart, "white", this.whiteLine, "white-stroke")
+	this.appendLineAndPoints(this.redChart, "red", this.redLine, "red-stroke")
+	this.appendLineAndPoints(this.greenChart, "green", this.greenLine, "green-stroke")
+	this.appendLineAndPoints(this.blueChart, "blue", this.blueLine, "blue-stroke")
+}
 
-	this.redChart.append("path")
-		.data([this.data])
-		.attr("class", "red-stroke")
-		.attr("d", redLine);
-	this.redChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => this.x(d.date))
-		.attr("cy", d => this.y(d.red));
-
-	this.greenChart.append("path")
-		.data([this.data])
-		.attr("class", "green-stroke")
-		.attr("d", greenLine);
-	this.greenChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => this.x(d.date))
-		.attr("cy", d => this.y(d.green));
-	
-	this.blueChart.append("path")
-		.data([this.data])
-		.attr("class", "blue-stroke")
-		.attr("d", blueLine);
-	this.blueChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", d => d === this.selected ? "selected-point" : "point")
-		.attr("r", 6)
-		.attr("cx", d => this.x(d.date))
-		.attr("cy", d => this.y(d.blue))
-	 .on("mousedown.drag",  this.datapoint_drag())
-	 .on("touchstart.drag", this.datapoint_drag());
+ScheduleChart.prototype.updateData = function() {
+	this.updateLineAndPoints(this.whiteChart, "white", this.whiteLine, "white-stroke")
+	this.updateLineAndPoints(this.redChart, "red", this.redLine, "red-stroke")
+	this.updateLineAndPoints(this.greenChart, "green", this.greenLine, "green-stroke")
+	this.updateLineAndPoints(this.blueChart, "blue", this.blueLine, "blue-stroke")
 }
 
 
@@ -231,43 +238,73 @@ ScheduleChart.prototype.appendPlotArea = function(chart) {
 		.attr("width", this.width)
 		.attr("height", this.chartHeight)
 		.style("fill", "#EEEEEE");
-
-	chart
-		.on("mousemove.drag", this.mousemove(chart))
-		.on("touchmove.drag", this.mousemove(chart))
-		.on("mouseup.drag",   this.mouseup(chart))
-		.on("touchend.drag",  this.mouseup(chart));
 }
 
-ScheduleChart.prototype.datapoint_drag = function() {
+ScheduleChart.prototype.appendLineAndPoints = function(chart, dataKey, line, lineStyle) {
+	chart.append("path")
+		.data([this.data])
+		.attr("class", lineStyle)
+		.attr("d", line);
+	chart.selectAll("dot")
+		.data(this.data)
+		.enter().append("circle")
+		.call(__WEBPACK_IMPORTED_MODULE_0_d3__["drag"]()
+        .on("start", this.dragstarted)
+        .on("drag", this.dragged(this.x, this.y, dataKey))
+        .on("end", this.dragended))
+		.attr("class", d => d === this.selected ? "selected-point" : "point")
+		.attr("r", 10)
+		.attr("cx", d => this.x(d.date))
+		.attr("cy", d => this.y(d[dataKey]))
+}
+
+ScheduleChart.prototype.updateLineAndPoints = function(chart, dataKey, line, lineStyle) {
+	
+	chart.select("." + lineStyle)
+			.transition()
+			.duration(50)
+			.attr("d", line(this.data));
+	chart.selectAll("circle")
+			.data(this.data)
+			.transition()
+			.duration(50)
+			.attr("cx", d => this.x(d.date))
+			.attr("cy", d => this.y(d[dataKey]))
+
+	// update the gradient
+	this.data.forEach(d => {
+		const stops = this.svg.select("#gradient" + d.index).selectAll("stop");
+
+		stops.each((e, d) => {
+			console.log(e, d);
+		})
+	})
+
+}
+
+
+ScheduleChart.prototype.dragstarted = function(d) {
+  __WEBPACK_IMPORTED_MODULE_0_d3__["select"](this).raise().classed("active", true);
+}
+
+ScheduleChart.prototype.dragged = function(x, y, dataKey) {
 	return (d) => {
-		document.onselectstart = () => false;
-		this.selected = this.dragged = d;
-		this.update();
+		d.date = x.invert(__WEBPACK_IMPORTED_MODULE_0_d3__["event"].x);
+		let data = y.invert(__WEBPACK_IMPORTED_MODULE_0_d3__["event"].y);
+
+		if (data > 255) {
+			data = 255;
+		} else if (data < 0) {
+			data = 0;
+		}
+
+		d[dataKey] = data;
+		this.updateData();
 	}
 }
 
-
-ScheduleChart.prototype.mousemove = function(chart) {
-  return () => {
-		console.log(chart);
-    var p = chart.mouse(chart[0][0]),
-        t = chart.changedTouches;
-    
-    if (this.dragged) {
-			console.log("draggin", p);
-      //this.dragged.y = this.y.invert(Math.max(0, Math.min(this.height, p[1])));
-      this.update();
-    };
-	}
-}
-
-ScheduleChart.prototype.mouseup = function() {
-  return () => {
-    if (this.dragged) { 
-      this.dragged = null 
-    }
-  }
+ScheduleChart.prototype.dragended = function(d) {
+  __WEBPACK_IMPORTED_MODULE_0_d3__["select"](this).classed("active", false);
 }
 
 /***/ }),
@@ -276,12 +313,19 @@ ScheduleChart.prototype.mouseup = function() {
 
 "use strict";
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__scheduleChart__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__fdaciuk_ajax__ = __webpack_require__(3);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__fdaciuk_ajax___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__fdaciuk_ajax__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__scheduleChart__ = __webpack_require__(0);
 
 
 
-let scheduleChart = new __WEBPACK_IMPORTED_MODULE_0__scheduleChart__["a" /* default */]('scheduleChart', {});
-console.log(scheduleChart);
+const scheduleChart = new __WEBPACK_IMPORTED_MODULE_1__scheduleChart__["a" /* default */]('scheduleChart', {});
+
+window.refresh = function(){
+  console.log('refreshing');
+  __WEBPACK_IMPORTED_MODULE_0__fdaciuk_ajax___default()().post('/server/api/refresh');
+};
+
 
 /***/ }),
 /* 2 */
@@ -17154,6 +17198,24 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
 
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;/**!
+ * ajax - v2.3.0
+ * Ajax module in Vanilla JS
+ * https://github.com/fdaciuk/ajax
+
+ * Sun Jul 23 2017 10:55:09 GMT-0300 (BRT)
+ * MIT (c) Fernando Daciuk
+*/
+!function(e,t){"use strict"; true?!(__WEBPACK_AMD_DEFINE_FACTORY__ = (t),
+				__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
+				(__WEBPACK_AMD_DEFINE_FACTORY__.call(exports, __webpack_require__, exports, module)) :
+				__WEBPACK_AMD_DEFINE_FACTORY__),
+				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)):"object"==typeof exports?exports=module.exports=t():e.ajax=t()}(this,function(){"use strict";function e(e){var r=["get","post","put","delete"];return e=e||{},e.baseUrl=e.baseUrl||"",e.method&&e.url?n(e.method,e.baseUrl+e.url,t(e.data),e):r.reduce(function(r,o){return r[o]=function(r,u){return n(o,e.baseUrl+r,t(u),e)},r},{})}function t(e){return e||null}function n(e,t,n,u){var c=["then","catch","always"],i=c.reduce(function(e,t){return e[t]=function(n){return e[t]=n,e},e},{}),f=new XMLHttpRequest,d=r(t,n,e);return f.open(e,d,!0),f.withCredentials=u.hasOwnProperty("withCredentials"),o(f,u.headers),f.addEventListener("readystatechange",a(i,f),!1),f.send(s(n)),i.abort=function(){return f.abort()},i}function r(e,t,n){if("get"!==n.toLowerCase()||!t)return e;var r=s(t),o=e.indexOf("?")>-1?"&":"?";return e+o+r}function o(e,t){t=t||{},u(t)||(t["Content-Type"]="application/x-www-form-urlencoded"),Object.keys(t).forEach(function(n){t[n]&&e.setRequestHeader(n,t[n])})}function u(e){return Object.keys(e).some(function(e){return"content-type"===e.toLowerCase()})}function a(e,t){return function n(){t.readyState===t.DONE&&(t.removeEventListener("readystatechange",n,!1),e.always.apply(e,c(t)),t.status>=200&&t.status<300?e.then.apply(e,c(t)):e["catch"].apply(e,c(t)))}}function c(e){var t;try{t=JSON.parse(e.responseText)}catch(n){t=e.responseText}return[t,e]}function s(e){return i(e)?f(e):e}function i(e){return"[object Object]"===Object.prototype.toString.call(e)}function f(e){return Object.keys(e).reduce(function(t,n){var r=t?t+"&":"";return r+d(n)+"="+d(e[n])},"")}function d(e){return encodeURIComponent(e)}return e});
 
 /***/ })
 /******/ ]);

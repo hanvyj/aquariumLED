@@ -2,21 +2,26 @@
   "name": "aquarium-led",
   "version": "0.0.0",
   "private": true,
+  "nodemon": "dev",
   "scripts": {
-    "start": "nodemon ./bin/www",
-    "host": "ws --rewrite \"/data/* -> http://localhost:3000/data/$1\"",
+    "start": "nodemon ./server/bin/www",
+    "host": "(run in frontend): ws --rewrite \"/data/* -> http://localhost:3000/data/$1\"",
     "transpile": "webpack --watch"
   },
   "dependencies": {
+    "@fdaciuk/ajax": "^2.3.0",
     "body-parser": "~1.13.2",
     "cookie-parser": "~1.3.5",
     "d3": "^4.9.1",
     "eslint-plugin-import": "^2.2.0",
     "eslint-plugin-node": "^4.2.2",
     "express": "~4.13.1",
-    "nodemon": "^1.11.0"
+    "moment": "^2.18.1",
+    "nodemon": "^1.11.0",
+    "rxjs": "^5.4.3"
   },
   "devDependencies": {
-    "webpack": "^2.5.1"
+    "webpack": "^2.5.1",
+    "pigpio-mock": "0.0.1"
   }
 }

@@ -1,5 +1,9 @@
-
+import ajax from '@fdaciuk/ajax';
 import ScheduleChart from './scheduleChart';
 
-let scheduleChart = new ScheduleChart('scheduleChart', {});
-console.log(scheduleChart);
+const scheduleChart = new ScheduleChart('scheduleChart', {});
+
+window.refresh = function(){
+  console.log('refreshing');
+  ajax().post('/server/api/refresh');
+};

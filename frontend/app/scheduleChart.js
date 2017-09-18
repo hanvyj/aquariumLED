@@ -7,18 +7,21 @@ export default function ScheduleChart(elemid, options) {
 	// insert element
 	this.chartElement = document.getElementById(elemid);
 
-	d3.csv("/data/LEDProfile.csv", (error, data) => {
+	d3.csv("server/data/LEDProfile.csv", (error, data) => {
 		if (error) throw error;
 		this.data = data;
 		
 		// format the data
-		this.data.forEach(d => {
-			d.date = parseTime(d.date);
-			d.red = +d.red;
-			d.green = +d.green;
-			d.blue = +d.blue;
-			d.white = +d.white;
-		});
+		let i = 0;
+		this.data = this.data.map(d => ({
+			index: i++,
+			date: parseTime(d.date),
+			red: +d.red,
+			green: +d.green,
+			blue: +d.blue,
+			white: +d.white
+		}));
+		console.log(this.data);
 
 		this.create();
 		this.update();
@@ -34,7 +37,7 @@ ScheduleChart.prototype.create = function() {
 	this.width = this.bodyWidth - this.margin.left - this.margin.right;
 	this.height = 500 - this.margin.top - this.margin.bottom;
 	this.chartSpacing = 10;
-	this.chartHeight = (this.height - (this.chartSpacing * 3)) / 4;
+	this.chartHeight = (this.height - (this.chartSpacing * 4)) / 5;
 
 	// set the ranges
 	this.x = d3.scaleTime().range([0, this.width]);
@@ -47,22 +50,23 @@ ScheduleChart.prototype.create = function() {
 	// append the svg obgect to the body of the page
 	// appends a 'group' element to 'svg'
 	// moves the 'group' element to the top left margin
-	const svg = d3.select("#scheduleChart").append("svg")
+	const svg = this.svg = d3.select("#scheduleChart").append("svg")
 		.attr("width", this.width + this.margin.left + this.margin.right)
 		.attr("height", this.height + this.margin.top + this.margin.bottom)
-		.append("g")
+
+	const g = svg.append("g")
 		.attr("transform",
 		"translate(" + this.margin.left + "," + this.margin.top + ")");
 
 	// create chart groups & agreas
-	this.whiteChart = svg.append("g")
-	this.redChart = svg.append("g")
+	this.whiteChart = g.append("g")
+	this.redChart = g.append("g")
 		.attr("transform",
 		"translate(0," + (this.chartSpacing + this.chartHeight) + ")");
-	this.greenChart = svg.append("g")
+	this.greenChart = g.append("g")
 		.attr("transform",
 		"translate(0," + (this.chartSpacing + this.chartHeight) * 2 + ")");
-	this.blueChart = svg.append("g")
+	this.blueChart = g.append("g")
 		.attr("transform",
 		"translate(0," + (this.chartSpacing + this.chartHeight) * 3 + ")");
 
@@ -71,82 +75,85 @@ ScheduleChart.prototype.create = function() {
 	this.appendPlotArea(this.greenChart);
 	this.appendPlotArea(this.blueChart);
 
+	this.colorArea = g.append("g")
+		.attr("transform",
+		"translate(0," + (this.chartSpacing + this.chartHeight) * 4 + ")");
+
 	// Add the X Axis
 	svg.append("g")
 		.attr("transform", "translate(0," + this.height + ")")
 		.call(d3.axisBottom(this.x)
 			.tickFormat(d3.timeFormat("%H:%M")));
+
+	var gradients = svg.append("defs")
+			.selectAll("gradients")
+		.data(this.data)
+		.enter().append("linearGradient")
+    .attr("id", d => "gradient" + d.index)
+    .attr("x1", "0%")
+    .attr("y1", "0%")
+    .attr("x2", "100%")
+    .attr("y2", "0%")
+
+	gradients.append("stop")
+   .attr('class', 'start')
+   .attr("offset", "0%")
+   .attr("stop-color", d => `rgb(${d.red}, ${d.green}, ${d.blue})`)
+   .attr("stop-opacity", 1);
+
+	gradients.append("stop")
+   .attr('class', 'end')
+   .attr("offset", "100%")
+   .attr("stop-color", d => {
+		 if (d.index < (this.data.length - 1)) {
+			const next = this.data[d.index + 1];
+			`rgb(${next.red}, ${next.green}, ${next.blue})`
+		 }
+	 })
+   .attr("stop-opacity", 1);
+
+	this.colorArea.selectAll("color")
+		.data(this.data)
+		.enter().append("rect")
+		.attr("x", d => this.x(d.date))
+		.attr("width", d => {
+			return d.index < (this.data.length - 1) ? this.x(this.data[d.index + 1].date) - this.x(d.date) : 0;
+		})
+		.attr("height",this.chartHeight)
+		.attr("fill", d => "url(#gradient" + d.index + ")");
 }
 
 ScheduleChart.prototype.update = function() {
 
 	// define the line
-	const whiteLine = d3.line()
+	this.whiteLine = d3.line()
 		.x(d => this.x(d.date))
 		.y(d => this.y(d.white));
 
-	const redLine = d3.line()
+	this.redLine = d3.line()
 		.x(d => this.x(d.date))
 		.y(d => this.y(d.red));
 
-	const greenLine = d3.line()
+	this.greenLine = d3.line()
 		.x(d => this.x(d.date))
 		.y(d => this.y(d.green));
 
-	const blueLine = d3.line()
+	this.blueLine = d3.line()
 		.x(d => this.x(d.date))
 		.y(d => this.y(d.blue));
 
 	// Add the line path.
-	this.whiteChart.append("path")
-		.data([this.data])
-		.attr("class", "white-stroke")
-		.attr("d", whiteLine);
-	this.whiteChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => this.x(d.date))
-		.attr("cy", d => this.y(d.white));
+	this.appendLineAndPoints(this.whiteChart, "white", this.whiteLine, "white-stroke")
+	this.appendLineAndPoints(this.redChart, "red", this.redLine, "red-stroke")
+	this.appendLineAndPoints(this.greenChart, "green", this.greenLine, "green-stroke")
+	this.appendLineAndPoints(this.blueChart, "blue", this.blueLine, "blue-stroke")
+}
 
-	this.redChart.append("path")
-		.data([this.data])
-		.attr("class", "red-stroke")
-		.attr("d", redLine);
-	this.redChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => this.x(d.date))
-		.attr("cy", d => this.y(d.red));
-
-	this.greenChart.append("path")
-		.data([this.data])
-		.attr("class", "green-stroke")
-		.attr("d", greenLine);
-	this.greenChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", "point")
-		.attr("r", 6)
-		.attr("cx", d => this.x(d.date))
-		.attr("cy", d => this.y(d.green));
-	
-	this.blueChart.append("path")
-		.data([this.data])
-		.attr("class", "blue-stroke")
-		.attr("d", blueLine);
-	this.blueChart.selectAll("dot")
-		.data(this.data)
-		.enter().append("circle")
-		.attr("class", d => d === this.selected ? "selected-point" : "point")
-		.attr("r", 6)
-		.attr("cx", d => this.x(d.date))
-		.attr("cy", d => this.y(d.blue))
-	 .on("mousedown.drag",  this.datapoint_drag())
-	 .on("touchstart.drag", this.datapoint_drag());
+ScheduleChart.prototype.updateData = function() {
+	this.updateLineAndPoints(this.whiteChart, "white", this.whiteLine, "white-stroke")
+	this.updateLineAndPoints(this.redChart, "red", this.redLine, "red-stroke")
+	this.updateLineAndPoints(this.greenChart, "green", this.greenLine, "green-stroke")
+	this.updateLineAndPoints(this.blueChart, "blue", this.blueLine, "blue-stroke")
 }
 
 
@@ -155,41 +162,71 @@ ScheduleChart.prototype.appendPlotArea = function(chart) {
 		.attr("width", this.width)
 		.attr("height", this.chartHeight)
 		.style("fill", "#EEEEEE");
-
-	chart
-		.on("mousemove.drag", this.mousemove(chart))
-		.on("touchmove.drag", this.mousemove(chart))
-		.on("mouseup.drag",   this.mouseup(chart))
-		.on("touchend.drag",  this.mouseup(chart));
 }
 
-ScheduleChart.prototype.datapoint_drag = function() {
+ScheduleChart.prototype.appendLineAndPoints = function(chart, dataKey, line, lineStyle) {
+	chart.append("path")
+		.data([this.data])
+		.attr("class", lineStyle)
+		.attr("d", line);
+	chart.selectAll("dot")
+		.data(this.data)
+		.enter().append("circle")
+		.call(d3.drag()
+        .on("start", this.dragstarted)
+        .on("drag", this.dragged(this.x, this.y, dataKey))
+        .on("end", this.dragended))
+		.attr("class", d => d === this.selected ? "selected-point" : "point")
+		.attr("r", 10)
+		.attr("cx", d => this.x(d.date))
+		.attr("cy", d => this.y(d[dataKey]))
+}
+
+ScheduleChart.prototype.updateLineAndPoints = function(chart, dataKey, line, lineStyle) {
+	
+	chart.select("." + lineStyle)
+			.transition()
+			.duration(50)
+			.attr("d", line(this.data));
+	chart.selectAll("circle")
+			.data(this.data)
+			.transition()
+			.duration(50)
+			.attr("cx", d => this.x(d.date))
+			.attr("cy", d => this.y(d[dataKey]))
+
+	// update the gradient
+	this.data.forEach(d => {
+		const stops = this.svg.select("#gradient" + d.index).selectAll("stop");
+
+		stops.each((e, d) => {
+			console.log(e, d);
+		})
+	})
+
+}
+
+
+ScheduleChart.prototype.dragstarted = function(d) {
+  d3.select(this).raise().classed("active", true);
+}
+
+ScheduleChart.prototype.dragged = function(x, y, dataKey) {
 	return (d) => {
-		document.onselectstart = () => false;
-		this.selected = this.dragged = d;
-		this.update();
+		d.date = x.invert(d3.event.x);
+		let data = y.invert(d3.event.y);
+
+		if (data > 255) {
+			data = 255;
+		} else if (data < 0) {
+			data = 0;
+		}
+
+		d[dataKey] = data;
+		this.updateData();
 	}
 }
 
-
-ScheduleChart.prototype.mousemove = function(chart) {
-  return () => {
-		console.log(chart);
-    var p = chart.mouse(chart[0][0]),
-        t = chart.changedTouches;
-    
-    if (this.dragged) {
-			console.log("draggin", p);
-      //this.dragged.y = this.y.invert(Math.max(0, Math.min(this.height, p[1])));
-      this.update();
-    };
-	}
-}
-
-ScheduleChart.prototype.mouseup = function() {
-  return () => {
-    if (this.dragged) { 
-      this.dragged = null 
-    }
-  }
+ScheduleChart.prototype.dragended = function(d) {
+  d3.select(this).classed("active", false);
 }
